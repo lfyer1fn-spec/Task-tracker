@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Трекер задач</title>
+  <!-- Тема применяется до отрисовки, чтобы не было мерцания -->
+  <script>
+    try {
+      document.documentElement.setAttribute('data-theme', localStorage.getItem('task-tracker-theme') || 'light');
+    } catch (e) {}
+  </script>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Ctext y=%2214%22 font-size=%2214%22%3E%F0%9F%93%8B%3C/text%3E%3C/svg%3E">
+  <style>
+/* ===== Темы: переменные задаются через data-theme на <html> ===== */
+:root,
+[data-theme="light"] {
+  --bg: #f4f6fb;
+  --card: #ffffff;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --success: #10b981;
+  --danger: #ef4444;
+  --warn: #f59e0b;
+  --shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="dark"] {
+  --bg: #0f172a;
+  --card: #1e293b;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --border: #334155;
+  --primary: #6366f1;
+  --primary-hover: #4f46e5;
+  --success: #34d399;
+  --danger: #f87171;
+  --warn: #fbbf24;
+  --shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="ocean"] {
+  --bg: #e6f4fb;
+  --card: #ffffff;
+  --text: #0b3550;
+  --muted: #4a7089;
+  --border: #bfe0f0;
+  --primary: #0284c7;
+  --primary-hover: #0369a1;
+  --success: #0d9488;
+  --danger: #e11d48;
+  --warn: #d97706;
+  --shadow: 0 4px 16px rgba(2, 132, 199, 0.12);
+}
+
+[data-theme="forest"] {
+  --bg: #eef6ee;
+  --card: #ffffff;
+  --text: #1d3a24;
+  --muted: #5b7a63;
+  --border: #c8e0cc;
+  --primary: #15803d;
+  --primary-hover: #166534;
+  --success: #22c55e;
+  --danger: #dc2626;
+  --warn: #ca8a04;
+  --shadow: 0 4px 16px rgba(21, 128, 61, 0.1);
+}
+
+[data-theme="sunset"] {
+  --bg: #fff4ea;
+  --card: #fffdf9;
+  --text: #3b1d0e;
+  --muted: #8a5a44;
+  --border: #f6d5b8;
+  --primary: #ea580c;
+  --primary-hover: #c2410c;
+  --success: #16a34a;
+  --danger: #dc2626;
+  --warn: #f59e0b;
+  --shadow: 0 4px 16px rgba(234, 88, 12, 0.12);
+}
+
+[data-theme="rose"] {
+  --bg: #2a1830;
+  --card: #3a2344;
+  --text: #fbe7f2;
+  --muted: #c9a2bd;
+  --border: #5a3a62;
+  --primary: #ec4899;
+  --primary-hover: #db2777;
+  --success: #34d399;
+  --danger: #fb7185;
+  --warn: #fbbf24;
+  --shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+/* ===== Плавный переход между темами ===== */
+*,
+*::before,
+*::after {
+  transition-property: background-color, border-color, color, box-shadow, opacity;
+  transition-duration: 0.5s;
+  transition-timing-function: ease;
+}
+
+/* ===== База ===== */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.4;
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 24px 16px 60px;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.header h1 { margin: 0; font-size: 1.6rem; }
+.header-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+.card {
+  background: var(--card);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 18px;
+  margin-bottom: 16px;
+}
+
+/* ===== Кнопки и поля ===== */
+.btn {
+  border: none;
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  background: var(--border);
+  color: var(--text);
+  transition-duration: 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+.btn-ghost:hover { background: var(--border); }
+.btn-danger-ghost { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
+.btn-danger-ghost:hover { background: var(--danger); color: #fff; }
+.btn-icon {
+  background: transparent;
+  padding: 6px 8px;
+  font-size: 1rem;
+  border-radius: 8px;
+}
+.btn-icon:hover { background: var(--border); }
+.btn-icon.danger:hover { background: var(--danger); color: #fff; }
+
+input, select, textarea {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 9px 12px;
+  outline: none;
+  width: 100%;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--primary); }
+textarea { resize: vertical; }
+
+.theme-select { width: auto; padding: 8px 10px; cursor: pointer; }
+
+/* ===== Прогресс ===== */
+.progress-card { padding-bottom: 20px; }
+.progress-head {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.progress-bar {
+  height: 14px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--primary), var(--success));
+  border-radius: 999px;
+  transition-property: width, background-color;
+  transition-duration: 0.4s, 0.5s;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 16px;
+  text-align: center;
+}
+.stat span { display: block; font-size: 1.4rem; font-weight: 700; }
+.stat small { color: var(--muted); }
+
+/* ===== Форма добавления ===== */
+.add-form {
+  display: grid;
+  grid-template-columns: 1fr 130px 150px auto;
+  gap: 8px;
+}
+.add-form .full { grid-column: 1 / -1; }
+
+/* ===== Фильтры ===== */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.filters input[type="search"] { flex: 1 1 200px; }
+.filters select { width: auto; }
+.chips { display: flex; gap: 6px; }
+.chip {
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition-duration: 0.2s;
+}
+.chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+/* ===== Список задач ===== */
+.task-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.task {
+  background: var(--card);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: start;
+  border-left: 5px solid var(--border);
+}
+.task.prio-high { border-left-color: var(--danger); }
+.task.prio-medium { border-left-color: var(--warn); }
+.task.prio-low { border-left-color: var(--success); }
+.task.done .task-title { text-decoration: line-through; color: var(--muted); }
+.task.done { opacity: 0.75; }
+.task.overdue .meta-deadline { color: var(--danger); font-weight: 600; }
+
+.task > input[type="checkbox"],
+.sub-item input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  margin-top: 3px;
+  accent-color: var(--success);
+  cursor: pointer;
+  padding: 0;
+}
+.task-title { font-weight: 600; font-size: 1rem; word-break: break-word; }
+.task-desc { color: var(--muted); font-size: 0.88rem; margin-top: 4px; white-space: pre-wrap; word-break: break-word; }
+.meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 0.8rem; color: var(--muted); margin-top: 6px; }
+.badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.badge.high { background: color-mix(in srgb, var(--danger) 18%, transparent); color: var(--danger); }
+.badge.medium { background: color-mix(in srgb, var(--warn) 22%, transparent); color: var(--warn); }
+.badge.low { background: color-mix(in srgb, var(--success) 20%, transparent); color: var(--success); }
+
+.task-progress { margin-top: 10px; display: flex; align-items: center; gap: 8px; }
+.task-progress .bar {
+  flex: 1;
+  height: 8px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.task-progress .bar div {
+  height: 100%;
+  background: var(--primary);
+  transition-property: width;
+  transition-duration: 0.3s;
+}
+.task-progress span { font-size: 0.8rem; color: var(--muted); min-width: 38px; text-align: right; }
+
+.task-actions { display: flex; gap: 2px; }
+.empty { text-align: center; color: var(--muted); padding: 40px 0; }
+
+/* ===== Подзадачи ===== */
+.subtasks {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 8px 0 0;
+  border-top: 1px dashed var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sub-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.92rem;
+}
+.sub-item input[type="checkbox"] { margin: 0; width: 16px; height: 16px; }
+.sub-item.done span:not(.sub-del) { text-decoration: line-through; color: var(--muted); }
+.sub-item span:not(.sub-del) { flex: 1; word-break: break-word; }
+.sub-del {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0 4px;
+  border-radius: 6px;
+}
+.sub-del:hover { color: var(--danger); background: var(--border); }
+.sub-add {
+  display: flex;
+  margin-top: 4px;
+}
+.sub-add input {
+  padding: 6px 10px;
+  font-size: 0.88rem;
+}
+
+.modal-subs { margin: 4px 0 12px; }
+.modal-subs-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.modal-subs-head small { color: var(--muted); font-weight: 400; }
+.modal-subs .subtasks { border-top: none; padding-top: 4px; max-height: 180px; overflow-y: auto; }
+.modal-subs .sub-item input[type="checkbox"] { accent-color: var(--success); }
+.modal-subs .sub-add input { width: 100%; }
+
+/* ===== Модалка ===== */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 100;
+}
+.modal[hidden] { display: none; }
+.modal-content { width: 100%; max-width: 480px; margin: 0; }
+.modal-content h2 { margin-top: 0; font-size: 1.2rem; }
+.modal-content label { display: block; font-size: 0.9rem; margin-bottom: 12px; }
+.modal-content label input, .modal-content label select, .modal-content label textarea { margin-top: 4px; }
+.modal-content .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.modal-content input[type="range"] { padding: 0; accent-color: var(--primary); }
+.modal-content input[type="range"]:disabled { opacity: 0.4; }
+.hint { display: block; color: var(--muted); font-size: 0.8rem; margin: -6px 0 12px; }
+.hint[hidden] { display: none; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+
+/* ===== Адаптив ===== */
+@media (max-width: 640px) {
+  .add-form { grid-template-columns: 1fr 1fr; }
+  .add-form input[type="text"] { grid-column: 1 / -1; }
+  .add-form .btn { grid-column: 1 / -1; justify-content: center; }
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .task { grid-template-columns: auto 1fr; }
+  .task-actions { grid-column: 1 / -1; justify-content: flex-end; }
+  .filters select { width: 100%; }
+  .theme-select { width: 100%; }
+}
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>📋 Трекер задач</h1>
+      <div class="header-actions">
+        <select id="themeSelect" class="theme-select" title="Тема оформления">
+          <option value="light">☀️ Светлая</option>
+          <option value="dark">🌙 Тёмная</option>
+          <option value="ocean">🌊 Океан</option>
+          <option value="forest">🌲 Лес</option>
+          <option value="sunset">🌅 Закат</option>
+          <option value="rose">🌸 Роза</option>
+        </select>
+        <button id="btnRefresh" class="btn btn-ghost" title="Перечитать задачи из хранилища">⟳ Обновить</button>
+        <button id="btnExport" class="btn btn-ghost" title="Экспорт в JSON">⬇ Экспорт</button>
+        <label class="btn btn-ghost" title="Импорт из JSON">
+          ⬆ Импорт
+          <input type="file" id="importFile" accept="application/json" hidden>
+        </label>
+        <button id="btnReset" class="btn btn-danger-ghost" title="Удалить все задачи">🗑 Очистить</button>
+      </div>
+    </header>
+
+    <!-- Общий прогресс -->
+    <section class="card progress-card">
+      <div class="progress-head">
+        <span>Общий прогресс плана</span>
+        <strong id="overallText">0%</strong>
+      </div>
+      <div class="progress-bar">
+        <div id="overallBar" class="progress-fill"></div>
+      </div>
+      <div class="stats">
+        <div class="stat"><span id="statTotal">0</span><small>Всего</small></div>
+        <div class="stat"><span id="statDone">0</span><small>Готово</small></div>
+        <div class="stat"><span id="statActive">0</span><small>В работе</small></div>
+        <div class="stat"><span id="statOverdue">0</span><small>Просрочено</small></div>
+      </div>
+    </section>
+
+    <!-- Форма добавления -->
+    <section class="card">
+      <form id="addForm" class="add-form">
+        <input type="text" id="newTitle" placeholder="Название новой задачи..." required maxlength="200">
+        <select id="newPriority">
+          <option value="low">Низкий</option>
+          <option value="medium" selected>Средний</option>
+          <option value="high">Высокий</option>
+        </select>
+        <input type="date" id="newDeadline">
+        <button type="submit" class="btn btn-primary">+ Добавить</button>
+        <textarea id="newDesc" class="full" rows="2" maxlength="1000" placeholder="Описание (необязательно)"></textarea>
+      </form>
+    </section>
+
+    <!-- Фильтры -->
+    <section class="filters">
+      <input type="search" id="search" placeholder="🔍 Поиск по задачам...">
+      <div class="chips" id="statusChips">
+        <button class="chip active" data-filter="all">Все</button>
+        <button class="chip" data-filter="active">В работе</button>
+        <button class="chip" data-filter="done">Готово</button>
+      </div>
+      <select id="sortBy">
+        <option value="created">По дате создания</option>
+        <option value="priority">По приоритету</option>
+        <option value="deadline">По дедлайну</option>
+      </select>
+    </section>
+
+    <!-- Список задач -->
+    <ul id="taskList" class="task-list"></ul>
+    <p id="emptyState" class="empty" hidden>Задач пока нет. Добавьте первую! ✨</p>
+  </div>
+
+  <!-- Модалка редактирования -->
+  <div id="modal" class="modal" hidden>
+    <div class="modal-content card">
+      <h2>Редактирование задачи</h2>
+      <form id="editForm">
+        <input type="hidden" id="editId">
+        <label>Название
+          <input type="text" id="editTitle" required maxlength="200">
+        </label>
+        <label>Описание
+          <textarea id="editDesc" rows="3" maxlength="1000"></textarea>
+        </label>
+        <div class="row">
+          <label>Приоритет
+            <select id="editPriority">
+              <option value="low">Низкий</option>
+              <option value="medium">Средний</option>
+              <option value="high">Высокий</option>
+            </select>
+          </label>
+          <label>Дедлайн
+            <input type="date" id="editDeadline">
+          </label>
+        </div>
+        <label>Прогресс: <strong id="editProgressLabel">0%</strong>
+          <input type="range" id="editProgress" min="0" max="100" step="5">
+        </label>
+        <small id="progressHint" class="hint" hidden>Прогресс считается по подзадачам</small>
+
+        <div class="modal-subs">
+          <div class="modal-subs-head">
+            <span>Подзадачи</span>
+            <small id="modalSubCount">0/0</small>
+          </div>
+          <ul id="modalSubs" class="subtasks"></ul>
+          <div id="modalSubForm" class="sub-add">
+            <input type="text" id="modalSubInput" placeholder="+ новая подзадача, Enter" maxlength="200">
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" id="btnCancel" class="btn btn-ghost">Отмена</button>
+          <button type="submit" class="btn btn-primary">Сохранить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <script>
+(() => {
+  const STORAGE_KEY = 'task-tracker-v1';
+  const THEME_KEY = 'task-tracker-theme';
+  const THEMES = ['light', 'dark', 'ocean', 'forest', 'sunset', 'rose'];
+
+  function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+  function clamp(n) {
+    return Math.max(0, Math.min(100, Math.round(Number(n) || 0)));
+  }
+  function normalize(t) {
+    const subtasks = Array.isArray(t.subtasks)
+      ? t.subtasks.map((s) => ({ id: s.id || uid(), title: String(s.title || ''), done: !!s.done }))
+      : [];
+    return {
+      id: t.id || uid(),
+      title: String(t.title || 'Без названия'),
+      desc: String(t.desc || ''),
+      priority: ['low', 'medium', 'high'].includes(t.priority) ? t.priority : 'medium',
+      deadline: /^\d{4}-\d{2}-\d{2}$/.test(t.deadline || '') ? t.deadline : '',
+      progress: clamp(t.progress),
+      done: !!t.done,
+      created: Number(t.created) || Date.now(),
+      subtasks,
+    };
+  }
+  function load() {
+    try {
+      const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      return Array.isArray(data) ? data.map(normalize) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  let tasks = load();
+  let filter = 'all';
+  let search = '';
+  let sortBy = 'created';
+  let editingId = null; // id задачи, открытой в модалке
+  let focusSubFor = null;
+
+  const $ = (id) => document.getElementById(id);
+  const els = {
+    list: $('taskList'),
+    empty: $('emptyState'),
+    addForm: $('addForm'),
+    newTitle: $('newTitle'),
+    newDesc: $('newDesc'),
+    newPriority: $('newPriority'),
+    newDeadline: $('newDeadline'),
+    search: $('search'),
+    sortBy: $('sortBy'),
+    chips: $('statusChips'),
+    overallBar: $('overallBar'),
+    overallText: $('overallText'),
+    statTotal: $('statTotal'),
+    statDone: $('statDone'),
+    statActive: $('statActive'),
+    statOverdue: $('statOverdue'),
+    modal: $('modal'),
+    editForm: $('editForm'),
+    editId: $('editId'),
+    editTitle: $('editTitle'),
+    editDesc: $('editDesc'),
+    editPriority: $('editPriority'),
+    editDeadline: $('editDeadline'),
+    editProgress: $('editProgress'),
+    editProgressLabel: $('editProgressLabel'),
+    progressHint: $('progressHint'),
+    modalSubs: $('modalSubs'),
+    modalSubCount: $('modalSubCount'),
+    modalSubInput: $('modalSubInput'),
+    btnCancel: $('btnCancel'),
+    btnExport: $('btnExport'),
+    importFile: $('importFile'),
+    btnReset: $('btnReset'),
+    themeSelect: $('themeSelect'),
+  };
+
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+  }
+
+  // ---------- Вычисления ----------
+  function taskPercent(t) {
+    if (t.subtasks.length) {
+      const doneCount = t.subtasks.filter((s) => s.done).length;
+      return Math.round((doneCount / t.subtasks.length) * 100);
+    }
+    return t.done ? 100 : clamp(t.progress);
+  }
+
+  function isDoneTask(t) {
+    return t.subtasks.length ? t.subtasks.every((s) => s.done) : t.done;
+  }
+
+  function isOverdue(t) {
+    if (isDoneTask(t) || !t.deadline) return false;
+    return t.deadline < new Date().toISOString().slice(0, 10);
+  }
+
+  function overallPercent() {
+    if (!tasks.length) return 0;
+    const sum = tasks.reduce((acc, t) => acc + taskPercent(t), 0);
+    return Math.round(sum / tasks.length);
+  }
+
+  // ---------- Рендер списка ----------
+  const PRIO_ORDER = { high: 0, medium: 1, low: 2 };
+  const PRIO_LABEL = { high: 'Высокий', medium: 'Средний', low: 'Низкий' };
+
+  function getVisibleTasks() {
+    const q = search.trim().toLowerCase();
+    const list = tasks.filter((t) => {
+      if (filter === 'active' && isDoneTask(t)) return false;
+      if (filter === 'done' && !isDoneTask(t)) return false;
+      if (q && !t.title.toLowerCase().includes(q) && !t.desc.toLowerCase().includes(q)) return false;
+      return true;
+    });
+
+    list.sort((a, b) => {
+      if (sortBy === 'priority') return PRIO_ORDER[a.priority] - PRIO_ORDER[b.priority];
+      if (sortBy === 'deadline') {
+        if (!a.deadline && !b.deadline) return 0;
+        if (!a.deadline) return 1;
+        if (!b.deadline) return -1;
+        return a.deadline.localeCompare(b.deadline);
+      }
+      return a.created - b.created;
+    });
+    return list;
+  }
+
+  function render() {
+    els.list.innerHTML = '';
+    for (const t of getVisibleTasks()) {
+      els.list.appendChild(buildTaskNode(t));
+    }
+    els.empty.hidden = tasks.length !== 0;
+    renderStats();
+
+    if (focusSubFor) {
+      const input = els.list.querySelector(`li[data-id="${focusSubFor}"] .sub-add input`);
+      if (input) input.focus();
+      focusSubFor = null;
+    }
+  }
+
+  function buildTaskNode(t) {
+    const li = document.createElement('li');
+    const overdue = isOverdue(t);
+    const pct = taskPercent(t);
+    const isDone = isDoneTask(t);
+
+    li.className = `task prio-${t.priority}` + (isDone ? ' done' : '') + (overdue ? ' overdue' : '');
+    li.dataset.id = t.id;
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = isDone;
+    cb.title = 'Отметить готовой';
+    cb.addEventListener('change', () => toggleDone(t.id));
+
+    const body = document.createElement('div');
+
+    const title = document.createElement('div');
+    title.className = 'task-title';
+    title.textContent = t.title;
+    body.appendChild(title);
+
+    if (t.desc) {
+      const desc = document.createElement('div');
+      desc.className = 'task-desc';
+      desc.textContent = t.desc;
+      body.appendChild(desc);
+    }
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const badge = document.createElement('span');
+    badge.className = `badge ${t.priority}`;
+    badge.textContent = PRIO_LABEL[t.priority];
+    meta.appendChild(badge);
+    if (t.deadline) {
+      const d = document.createElement('span');
+      d.className = 'meta-deadline';
+      d.textContent = `📅 ${formatDate(t.deadline)}${overdue ? ' (просрочено)' : ''}`;
+      meta.appendChild(d);
+    }
+    if (t.subtasks.length) {
+      const c = document.createElement('span');
+      c.textContent = `☑ ${t.subtasks.filter((s) => s.done).length}/${t.subtasks.length}`;
+      meta.appendChild(c);
+    }
+    body.appendChild(meta);
+
+    const prog = document.createElement('div');
+    prog.className = 'task-progress';
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    const fill = document.createElement('div');
+    fill.style.width = pct + '%';
+    bar.appendChild(fill);
+    const label = document.createElement('span');
+    label.textContent = pct + '%';
+    prog.append(bar, label);
+    body.appendChild(prog);
+
+    body.appendChild(buildInlineSubtasks(t));
+
+    const actions = document.createElement('div');
+    actions.className = 'task-actions';
+    actions.appendChild(makeBtn('✏️', 'Редактировать', () => openModal(t.id)));
+    actions.appendChild(makeBtn('🗑', 'Удалить', () => deleteTask(t.id), 'danger'));
+
+    li.append(cb, body, actions);
+    return li;
+  }
+
+  // Подзадачи прямо в карточке (список + быстрое добавление)
+  function buildInlineSubtasks(t) {
+    const wrap = document.createElement('div');
+    if (t.subtasks.length) {
+      const ul = document.createElement('ul');
+      ul.className = 'subtasks';
+      for (const s of t.subtasks) {
+        ul.appendChild(buildSubItem(t.id, s));
+      }
+      wrap.appendChild(ul);
+    }
+    const form = document.createElement('form');
+    form.className = 'sub-add';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = '+ подзадача, Enter';
+    input.maxLength = 200;
+    form.appendChild(input);
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const title = input.value.trim();
+      if (title) addSub(t.id, title);
+    });
+    wrap.appendChild(form);
+    return wrap;
+  }
+
+  // Один элемент подзадачи (используется и в карточке, и в модалке)
+  function buildSubItem(taskId, s) {
+    const item = document.createElement('li');
+    item.className = 'sub-item' + (s.done ? ' done' : '');
+
+    const scb = document.createElement('input');
+    scb.type = 'checkbox';
+    scb.checked = s.done;
+    scb.addEventListener('change', () => toggleSub(taskId, s.id));
+
+    const text = document.createElement('span');
+    text.textContent = s.title;
+
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'sub-del';
+    del.title = 'Удалить подзадачу';
+    del.textContent = '✕';
+    del.addEventListener('click', () => deleteSub(taskId, s.id));
+
+    item.append(scb, text, del);
+    return item;
+  }
+
+  function makeBtn(icon, title, onClick, extra = '') {
+    const b = document.createElement('button');
+    b.className = `btn btn-icon ${extra}`.trim();
+    b.textContent = icon;
+    b.title = title;
+    b.addEventListener('click', onClick);
+    return b;
+  }
+
+  function renderStats() {
+    const total = tasks.length;
+    const done = tasks.filter(isDoneTask).length;
+    const overdue = tasks.filter(isOverdue).length;
+    const pct = overallPercent();
+
+    els.overallBar.style.width = pct + '%';
+    els.overallText.textContent = pct + '%';
+    els.statTotal.textContent = total;
+    els.statDone.textContent = done;
+    els.statActive.textContent = total - done;
+    els.statOverdue.textContent = overdue;
+  }
+
+  function formatDate(iso) {
+    const [y, m, d] = iso.split('-');
+    return `${d}.${m}.${y}`;
+  }
+
+  // ---------- Действия с задачами ----------
+  function addTask(data) {
+    tasks.push(
+      normalize({
+        id: uid(),
+        title: data.title,
+        desc: data.desc,
+        priority: data.priority,
+        deadline: data.deadline,
+        progress: 0,
+        done: false,
+        created: Date.now(),
+        subtasks: [],
+      })
+    );
+    save();
+    render();
+  }
+
+  function toggleDone(id) {
+    const t = tasks.find((x) => x.id === id);
+    if (!t) return;
+    const newDone = !isDoneTask(t);
+    t.done = newDone;
+    t.progress = newDone ? 100 : 0;
+    t.subtasks.forEach((s) => (s.done = newDone));
+    save();
+    render();
+  }
+
+  function deleteTask(id) {
+    const t = tasks.find((x) => x.id === id);
+    if (!t) return;
+    if (!confirm(`Удалить задачу «${t.title}»?`)) return;
+    tasks = tasks.filter((x) => x.id !== id);
+    save();
+    render();
+  }
+
+  // ---------- Действия с подзадачами ----------
+  function syncFromSubs(t) {
+    if (t.subtasks.length) t.done = t.subtasks.every((s) => s.done);
+  }
+
+  // Любое изменение подзадач: сохранить, перерисовать список и (если открыта) модалку
+  function afterSubChange(t) {
+    syncFromSubs(t);
+    save();
+    render();
+    if (editingId === t.id) refreshModalSubs();
+  }
+
+  function addSub(taskId, title) {
+    const t = tasks.find((x) => x.id === taskId);
+    if (!t) return;
+    t.subtasks.push({ id: uid(), title, done: false });
+    focusSubFor = taskId;
+    afterSubChange(t);
+  }
+
+  function toggleSub(taskId, subId) {
+    const t = tasks.find((x) => x.id === taskId);
+    const s = t && t.subtasks.find((x) => x.id === subId);
+    if (!s) return;
+    s.done = !s.done;
+    focusSubFor = taskId;
+    afterSubChange(t);
+  }
+
+  function deleteSub(taskId, subId) {
+    const t = tasks.find((x) => x.id === taskId);
+    if (!t) return;
+    t.subtasks = t.subtasks.filter((s) => s.id !== subId);
+    focusSubFor = taskId;
+    afterSubChange(t);
+  }
+
+  // ---------- Модалка ----------
+  function refreshModalSubs() {
+    const t = tasks.find((x) => x.id === editingId);
+    if (!t) return;
+    els.modalSubs.innerHTML = '';
+    for (const s of t.subtasks) {
+      els.modalSubs.appendChild(buildSubItem(t.id, s));
+    }
+    const doneCount = t.subtasks.filter((s) => s.done).length;
+    els.modalSubCount.textContent = `${doneCount}/${t.subtasks.length}`;
+
+    // Прогресс в модалке зависит от подзадач
+    const hasSubs = t.subtasks.length > 0;
+    const pct = taskPercent(t);
+    els.editProgress.disabled = hasSubs;
+    els.editProgress.value = pct;
+    els.editProgressLabel.textContent = pct + '%';
+    els.progressHint.hidden = !hasSubs;
+  }
+
+  function openModal(id) {
+    const t = tasks.find((x) => x.id === id);
+    if (!t) return;
+    editingId = id;
+    els.editId.value = t.id;
+    els.editTitle.value = t.title;
+    els.editDesc.value = t.desc;
+    els.editPriority.value = t.priority;
+    els.editDeadline.value = t.deadline;
+    els.modalSubInput.value = '';
+    refreshModalSubs();
+    els.modal.hidden = false;
+    els.editTitle.focus();
+  }
+
+  function closeModal() {
+    els.modal.hidden = true;
+    editingId = null;
+    render();
+  }
+
+  // Подзадача в модалке добавляется по Enter. preventDefault не даёт отправить форму редактирования
+  els.modalSubInput.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const title = els.modalSubInput.value.trim();
+    if (!title || !editingId) return;
+    addSub(editingId, title);
+    els.modalSubInput.value = '';
+    els.modalSubInput.focus();
+  });
+
+  els.editProgress.addEventListener('input', () => {
+    els.editProgressLabel.textContent = els.editProgress.value + '%';
+  });
+
+  els.editForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const t = tasks.find((x) => x.id === els.editId.value);
+    if (!t) return closeModal();
+
+    t.title = els.editTitle.value.trim() || 'Без названия';
+    t.desc = els.editDesc.value.trim();
+    t.priority = els.editPriority.value;
+    t.deadline = els.editDeadline.value;
+
+    if (!t.subtasks.length) {
+      t.progress = clamp(els.editProgress.value);
+      t.done = t.progress === 100;
+    }
+
+    save();
+    closeModal();
+  });
+
+  els.btnCancel.addEventListener('click', closeModal);
+  els.modal.addEventListener('click', (e) => {
+    if (e.target === els.modal) closeModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !els.modal.hidden) closeModal();
+  });
+
+  // ---------- Импорт / экспорт ----------
+  function exportJSON() {
+    const blob = new Blob([JSON.stringify(tasks, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tasks-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function importJSON(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        if (!Array.isArray(data)) throw new Error('not array');
+        tasks = data.map(normalize);
+        save();
+        render();
+      } catch {
+        alert('Не удалось прочитать файл. Нужен JSON-массив задач.');
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  // ---------- Тема ----------
+  function applyTheme(name) {
+    const theme = THEMES.includes(name) ? name : 'light';
+    document.documentElement.setAttribute('data-theme', theme);
+    els.themeSelect.value = theme;
+    localStorage.setItem(THEME_KEY, theme);
+  }
+
+  els.themeSelect.addEventListener('change', (e) => applyTheme(e.target.value));
+
+  // ---------- Формы и фильтры ----------
+  els.addForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const title = els.newTitle.value.trim();
+    if (!title) return;
+    addTask({
+      title,
+      desc: els.newDesc.value.trim(),
+      priority: els.newPriority.value,
+      deadline: els.newDeadline.value,
+    });
+    els.addForm.reset();
+    els.newPriority.value = 'medium';
+    els.newTitle.focus();
+  });
+
+  els.search.addEventListener('input', (e) => {
+    search = e.target.value;
+    render();
+  });
+
+  els.sortBy.addEventListener('change', (e) => {
+    sortBy = e.target.value;
+    render();
+  });
+
+  els.chips.addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    filter = chip.dataset.filter;
+    els.chips.querySelectorAll('.chip').forEach((c) => c.classList.toggle('active', c === chip));
+    render();
+  });
+
+  els.btnExport.addEventListener('click', exportJSON);
+  els.importFile.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) importJSON(file);
+    e.target.value = '';
+  });
+
+  els.btnReset.addEventListener('click', () => {
+    if (!tasks.length) return;
+    if (!confirm('Точно удалить ВСЕ задачи?')) return;
+    tasks = [];
+    save();
+    render();
+  });
+
+  // ---------- Обновить список ----------
+  // Перечитывает задачи из хранилища и перерисовывает всё, включая открытую модалку
+  const btnRefresh = $('btnRefresh');
+  btnRefresh.addEventListener('click', () => {
+    tasks = load();
+    render();
+    if (editingId) {
+      const t = tasks.find((x) => x.id === editingId);
+      if (t) openModal(t.id); else closeModal();
+    }
+    const old = btnRefresh.textContent;
+    btnRefresh.textContent = '✓ Готово';
+    setTimeout(() => (btnRefresh.textContent = old), 900);
+  });
+
+  // ---------- Старт ----------
+  applyTheme(localStorage.getItem(THEME_KEY) || 'light');
+  render();
+})();
+
+  </script>
+</body>
+</html>
